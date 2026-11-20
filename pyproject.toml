@@ -1,0 +1,26 @@
+[project]
+name = "bigdata2026-assignment2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "ccchuang", email = "aeric9210151@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "graphviz>=0.21",
+    "pandas>=2.3.3",
+    "pyarrow>=25.0.1",
+    "pytorch-frame>=0.3.0",
+    "relbench>=3.1.0",
+    "scikit-learn>=1.7.2",
+    "torch>=2.14.1",
+    "torch-geometric>=2.8.1",
+]
+
+[project.scripts]
+bigdata2026-assignment2 = "bigdata2026_assignment2:main"
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"

@@ -1,8 +1,6 @@
 .venv/
 raw/
+data/
+data_4w/
 assignment2/
 *.pt 
-.python-version
-pyproject.toml
-src/
-uv.lock
