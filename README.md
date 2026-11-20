@@ -16,6 +16,9 @@ Requires [uv](https://docs.astral.sh/uv/)
 ```bash
 git clone https://github.com/vayne2233/BigData2026-Assignment2
 cd BigData2026-Assignment2
+
+# course repo
+git clone https://github.com/nycubigdata-2026fall/BigData2026-Assignment2 assignment2
 uv sync  
 
 # pyg-lib is not on PyPI; install the build matching torch 2.14 (CPU)j
