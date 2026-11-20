@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.metrics import f1_score
+from sklearn.metrics import roc_auc_score
 from torch_geometric.loader import NeighborLoader
 from torch_geometric.nn import MLP
 from relbench.modeling.nn import HeteroEncoder, HeteroTemporalEncoder, HeteroGraphSAGE
@@ -12,7 +13,7 @@ from gnn_graph import build_graph
 from gnn_task import make_table, TRAIN_TIMES, T_VAL, ACTS
 
 torch.manual_seed(0)
-CHANNELS, LAYERS, EPOCHS = 64, 2, 10
+CHANNELS, LAYERS, EPOCHS = 64, 2, 20
 
 
 class Model(torch.nn.Module):
@@ -40,7 +41,7 @@ class Model(torch.nn.Module):
 
 def make_loader(data, table, shuffle):
     users = torch.tensor(table["user_id"].values)
-    times = torch.tensor(table["timestamp"].astype("int64").values // 10**9)   # seconds, like the graph
+    times = torch.tensor(((table["timestamp"] - pd.Timestamp("1970-01-01")) // pd.Timedelta(seconds=1)).values)
     y = torch.tensor(table[ACTS].values, dtype=torch.float)
 
     def attach_y(batch):
@@ -62,7 +63,8 @@ def predict(model, loader):
 def best_thresholds(prob, y):
     th = {}
     for i, a in enumerate(ACTS):
-        th[a] = max(np.arange(0.05, 0.9, 0.05), key=lambda t: f1_score(y[:, i], prob[:, i] >= t))
+        th[a] = max(np.quantile(prob[:, i], np.linspace(0.5, 0.9, 50)),
+                    key = lambda t: f1_score(y[:, i], prob[:, i] >= t))
     return th
 
 
@@ -74,7 +76,8 @@ if __name__ == "__main__":
 
     model = Model(data, col_stats)
     opt = torch.optim.Adam(model.parameters(), lr=0.005)
-    loss_fn = torch.nn.BCEWithLogitsLoss()
+    pos = torch.tensor(train_tab[ACTS].values, dtype=torch.float).mean(0)
+    loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=(1 - pos) / pos)
 
     for epoch in range(1, EPOCHS + 1):
         model.train()
@@ -91,4 +94,6 @@ if __name__ == "__main__":
     for a, f in zip(ACTS, f1s):
         print(f"{a:18s} threshold={th[a]:.2f}  F1={f:.3f}")
     print("macro-F1 =", round(np.mean(f1s), 3))
+    print("AUC", [round(roc_auc_score(y_val[:, i], prob[:, i]), 3)
+                  for i in range(len(ACTS))])
     torch.save(model.state_dict(), "model/sage.pt")
