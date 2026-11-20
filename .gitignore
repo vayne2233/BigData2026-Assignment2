@@ -1,8 +1,8 @@
 .venv/
-pyproject.toml
+raw/
 assignment2/
+*.pt 
 .python-version
+pyproject.toml
 src/
 uv.lock
-raw/
-*.pt 
