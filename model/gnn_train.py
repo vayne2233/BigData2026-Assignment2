@@ -11,6 +11,7 @@ from relbench.modeling.nn import HeteroEncoder, HeteroTemporalEncoder, HeteroGra
 from gnn_db import load_db
 from gnn_graph import build_graph
 from gnn_task import make_table, TRAIN_TIMES, T_VAL, ACTS
+from dataset import features
 
 torch.manual_seed(0)
 CHANNELS, LAYERS, EPOCHS = 64, 2, 20
@@ -55,15 +56,46 @@ class RelGNNModel(torch.nn.Module):
 
     def forward(self, batch):
         return self.net(batch, "Users")
+
         
+class HybridModel(torch.nn.Module):
+    """
+    RelGNN user embedding (relations + time) concatenated
+    with the user's own activity history.
+    """
+    def __init__(self, data, col_stats, n_hist):
+        super().__init__()
+        from relgnn_model import RelGNN_Model
+        from atomic_routes import get_atomic_routes 
+        self.gnn = RelGNN_Model(data = data, 
+                col_stats_dict = col_stats, 
+                num_model_layers = LAYERS, 
+                channels = CHANNELS,
+                out_channels = CHANNELS,
+                aggr = "sum", 
+                norm = "batch_norm", 
+                num_heads = 8,
+                atomic_routes = get_atomic_routes(data.edge_types))
+        self.head = MLP([CHANNELS + n_hist, CHANNELS, len(ACTS)], 
+                norm = "batch_norm")
+
+    def forward(self, batch):
+        z = self.gnn(batch, "Users")
+        return self.head(torch.cat([z, batch["Users"].hist], dim = 1))
+
 
 def make_loader(data, table, shuffle):
     users = torch.tensor(table["user_id"].values)
     times = torch.tensor(((table["timestamp"] - pd.Timestamp("1970-01-01")) // pd.Timedelta(seconds=1)).values)
     y = torch.tensor(table[ACTS].values, dtype=torch.float)
 
+    # history features at each row's own cut-off time (same row order as table)
+    hist = pd.concat([features(t).loc[g["user_id"]] for t, g in table.groupby("timestamp", sort=False)])
+    hist = torch.tensor(np.log1p(hist.values), dtype = torch.float)
+
     def attach_y(batch):
         batch["Users"].y = y[batch["Users"].input_id]
+        batch["Users"].hist = hist[batch["Users"].input_id]
         return batch
 
     return NeighborLoader(data, num_neighbors=[64, 32], time_attr="time",
@@ -94,27 +126,40 @@ if __name__ == "__main__":
 
     import sys
     name = sys.argv[1] if len(sys.argv) > 1 else "sage"
-    model = RelGNNModel(data, col_stats) if name == "relgnn" else Model(data, col_stats)
 
-    opt = torch.optim.Adam(model.parameters(), lr=0.005)
+    if name == "relgnn":
+        model = RelGNNModel(data, col_stats)
+    elif name == "hybrid":
+        model = HybridModel(data, col_stats, n_hist = features(T_VAL).shape[1])
+    else: 
+        model = Model(data, col_stats)
+
+    opt = torch.optim.Adam(model.parameters(), lr=0.001)
     pos = torch.tensor(train_tab[ACTS].values, dtype=torch.float).mean(0)
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=(1 - pos) / pos)
 
+    import copy
+    y_val = val_tab[ACTS].values
+    best_f1, best_state = -1, None
+
     for epoch in range(1, EPOCHS + 1):
         model.train()
+
         for batch in train_loader:
             opt.zero_grad()
             loss = loss_fn(model(batch), batch["Users"].y)
             loss.backward()
             opt.step()
-        print(f"epoch {epoch:02d}  loss={loss.item():.4f}")
 
-    prob, y_val = predict(model, val_loader), val_tab[ACTS].values
-    th = best_thresholds(prob, y_val)
-    f1s = [f1_score(y_val[:, i], prob[:, i] >= th[a]) for i, a in enumerate(ACTS)]
-    for a, f in zip(ACTS, f1s):
-        print(f"{a:18s} threshold={th[a]:.2f}  F1={f:.3f}")
-    print("macro-F1 =", round(np.mean(f1s), 3))
-    print("AUC", [round(roc_auc_score(y_val[:, i], prob[:, i]), 3)
-                  for i in range(len(ACTS))])
-    torch.save(model.state_dict(), f"model/{name}.pt")
+        # validate every epoch and keep the best model
+        prob = predict(model, val_loader)
+        th = best_thresholds(prob, y_val)
+        f1 = np.mean([f1_score(y_val[:, i], prob[:, i] >= th[a]) for i, a in enumerate(ACTS)])
+        print(f"epoch {epoch:02d}  loss = {loss.item():.4f}  val macro-F1 = {f1:.3f}")
+        if f1 > best_f1:
+            best_f1, best_state = f1, copy.deepcopy(model.state_dict())
+
+        model.load_state_dict(best_state)
+        prob = predict(model, val_loader)
+        th = best_thresholds(prob, y_val)
+        f1s = [f1_score(y_val[:, i], prob[:, i] >= th[a]) for i, a in enumerate(ACTS)]
