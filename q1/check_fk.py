@@ -1,3 +1,6 @@
+# Verify foreign keys: share of FK values found 
+# in the parent table's PK (1.0 = valid).
+
 import pandas as pd
 from pathlib import Path
 
