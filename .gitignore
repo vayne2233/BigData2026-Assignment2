@@ -5,3 +5,4 @@ assignment2/
 src/
 uv.lock
 raw/
+*.pt 
