@@ -1,13 +1,18 @@
 # BigData Assignment 2: Predicting GitHub User Activity
 
-## Data Structure
-GH Archive: https://www.gharchive.org/
+## Environment
+- OS: Win11, CPU only (no GPU)
+- Python 3.10 (managed by uv)
+- torch 2.14+cpu, torch-geometric 2.8.1, relbench, pytorch-frame, pyg-lib
+- Exact package versions are pinned in `uv.lock`
 
-Period used: 2026-10-25 00:00 ~ 2026-11-20 19:00 (UTC)
+## Data Structure
+- GH Archive: https://www.gharchive.org/
+- Period used: 2026-10-25 00:00 ~ 2026-11-20 19:00 (UTC)
 
 ## Setup
-uv sync
-
+uv sync  
+uv pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.14.0+cpu.html
 ## How to run
 ```bash
 # 1. Download raw data into raw/, then build the 8 tables
