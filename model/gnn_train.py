@@ -38,6 +38,24 @@ class Model(torch.nn.Module):
         x = self.gnn(x, batch.edge_index_dict)
         return self.head(x["Users"][: seed_time.size(0)])
 
+        
+class RelGNNModel(torch.nn.Module):
+    """
+    Official RelGNN (snap-standford/RelGNN): composite
+    message passing over atomic routes.
+    """
+    def __init__(self, data, col_stats):
+        super().__init__()
+        from relgnn_model import RelGNN_Model
+        from atomic_routes import get_atomic_routes
+        self.net = RelGNN_Model(data=data, col_stats_dict=col_stats, num_model_layers=LAYERS,
+                                channels=CHANNELS, out_channels=len(ACTS), aggr="sum",
+                                norm="batch_norm", num_heads=8,
+                                atomic_routes=get_atomic_routes(data.edge_types))
+
+    def forward(self, batch):
+        return self.net(batch, "Users")
+        
 
 def make_loader(data, table, shuffle):
     users = torch.tensor(table["user_id"].values)
@@ -74,7 +92,10 @@ if __name__ == "__main__":
     train_loader = make_loader(data, train_tab, shuffle=True)
     val_loader = make_loader(data, val_tab, shuffle=False)
 
-    model = Model(data, col_stats)
+    import sys
+    name = sys.argv[1] if len(sys.argv) > 1 else "sage"
+    model = RelGNNModel(data, col_stats) if name == "relgnn" else Model(data, col_stats)
+
     opt = torch.optim.Adam(model.parameters(), lr=0.005)
     pos = torch.tensor(train_tab[ACTS].values, dtype=torch.float).mean(0)
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=(1 - pos) / pos)
@@ -96,4 +117,4 @@ if __name__ == "__main__":
     print("macro-F1 =", round(np.mean(f1s), 3))
     print("AUC", [round(roc_auc_score(y_val[:, i], prob[:, i]), 3)
                   for i in range(len(ACTS))])
-    torch.save(model.state_dict(), "model/sage.pt")
+    torch.save(model.state_dict(), f"model/{name}.pt")
