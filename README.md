@@ -11,8 +11,22 @@
 - Period used: 2026-10-25 00:00 ~ 2026-11-20 19:00 (UTC)
 
 ## Setup
+Requires [uv](https://docs.astral.sh/uv/)
+
+```bash
+git clone https://github.com/vayne2233/BigData2026-Assignment2
+cd BigData2026-Assignment2
 uv sync  
+
+# pyg-lib is not on PyPI; install the build matching torch 2.14 (CPU)j
 uv pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.14.0+cpu.html
+```
+
+
+> **Windows note:** if the project path contains non-ASCII characters (e.g. Chinese), 
+> Python 3.10 may fail with `UnicodeDecodeError: 'cp950'`. Clone into a path with 
+> only English characters, e.g. `C:\asg2`.
+
 ## How to run
 ```bash
 # 1. Download raw data into raw/, then build the 8 tables
