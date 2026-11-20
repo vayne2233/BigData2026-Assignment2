@@ -2,6 +2,7 @@
 
 ## Data Structure
 GH Archive: https://www.gharchive.org/
+
 Period used: 2026-10-25 00:00 ~ 2026-11-20 19:00 (UTC)
 
 ## Setup
