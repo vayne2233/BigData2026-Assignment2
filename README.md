@@ -1,7 +1,7 @@
 # BigData Assignment 2: Predicting GitHub User Activity
 
 ## Data Structure
-GH Archive: https://www.gharcchive.org/
+GH Archive: https://www.gharchive.org/
 Period used: 2026-10-25 00:00 ~ 2026-11-20 19:00 (UTC)
 
 ## Setup
@@ -27,4 +27,4 @@ uv run python assignment2/scripts/evaluate.py --pred output_315552057.csv --inpu
 - `q1`: schema graph (Q1)
 - `model/dataset.py`, `train.py`, `predict.py`: logistic regression baseline
 - `model/gnn_*.py`: RelBench, database, graph, task and training
-- `model/relgnn_*.py`, `atomic_routes.py`: from https://github.com/snap-standford/RelGNN
+- `model/relgnn_*.py`, `atomic_routes.py`: from https://github.com/snap-stanford/RelGNN
