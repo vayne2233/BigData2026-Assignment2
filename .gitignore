@@ -1,1 +1,7 @@
+.venv/
+pyproject.toml
 assignment2/
+.python-version
+src/
+uv.lock
+raw/
